@@ -1,9 +1,11 @@
-import React, { Component } from 'react';
+import React, { Component, useState, useEffect } from 'react';
 import { Link, Route, Switch } from 'react-router-dom';
 import withAuth from './withAuth';
 import Home from './Home';
 import Secret from './Secret';
 import Login from './Login';
+import { useLocation } from 'react-router-dom';
+import  queryString  from 'query-string';
 
 class App extends Component {
   render() {
@@ -19,10 +21,35 @@ class App extends Component {
           <Route path="/" exact component={Home} />
           <Route path="/secret" component={withAuth(Secret)} />
           <Route path="/login" component={Login} />
+          <Route path="/register"  >
+            <Register />
+          </Route>
         </Switch>
       </div>
     );
   }
 }
-
+function Register(){
+  const [text, setRes] = useState('');
+  function response(res) {
+    setRes(res);
+  }
+  // useEffect(() => {
+    console.log('>>>')
+    let { search } = useLocation()
+    console.log(search)
+    const values = queryString.parse(search)
+    console.log(values)
+    fetch(`/api/register?email=${encodeURIComponent(values.email)}&password=${values.password}&type=${values.type}`)
+    .then(res => {
+      console.log(res)
+      response(res.statusText)
+      // return <p>{this.text}</p>
+    })
+  // }, []);
+    
+    return(
+      <div>{text}</div>
+    );
+}
 export default App;

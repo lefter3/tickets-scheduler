@@ -40,14 +40,16 @@ app.get('/api/secret', withAuth, function(req, res) {
 });
 
 app.get('/api/register', function(req, res) {
+  console.log(req.query)
   const { email, password, type } = req.query;
   const user = new User({ email, password, type });
+
   user.save(function(err) {
     if (err) {
       console.log(err);
       res.status(500).send("Error");
     } else {
-      res.status(200).send("OK!");
+      res.status(200).send("OK");
     }
   });
 });

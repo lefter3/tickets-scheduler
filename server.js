@@ -5,6 +5,7 @@ const path = require('path');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const User = require('./models/User');
+const Ticket = require('./models/Tickets')
 const withAuth = require('./middleware');
 
 const app = express();
@@ -33,10 +34,6 @@ app.get('/', function (req, res) {
 
 app.get('/api/home', function(req, res) {
   res.send('Welcome!');
-});
-
-app.get('/api/secret', withAuth, function(req, res) {
-  res.send('The password is potato');
 });
 
 app.get('/api/register', function(req, res) {
@@ -96,5 +93,28 @@ app.post('/api/authenticate', function(req, res) {
 app.get('/checkToken', withAuth, function(req, res) {
   res.sendStatus(200);
 });
+/////////////////////Tickets///////////////
+
+app.post('/api/tickets', function(req, res) {
+  console.log(req.body)
+  let seats = req.body.seats
+  for (i=1; i <= seats; i++) { 
+    const { inbound, outbound, from_date, to_date, price } = req.body;
+    const ticket = new Ticket({ inbound, outbound, i, from_date, to_date, price });
+
+    ticket.save(function(err) {
+      if (err) {
+        console.log(err);
+        //res.status(500).send("Error");
+      } else {
+        //res.status(200).send("OK");
+      }
+    });
+  }
+   res.send('ok')
+});
+
+
+///////////////////////////////////////////
 
 app.listen(process.env.PORT || 8080);

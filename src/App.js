@@ -3,6 +3,7 @@ import { Link, Route, Switch } from 'react-router-dom';
 import withAuth from './withAuth';
 import Home from './Home';
 import Secret from './Secret';
+import CreateTickets from './TicketAdmin';
 import Login from './Login';
 import { useLocation } from 'react-router-dom';
 import  queryString  from 'query-string';
@@ -15,11 +16,13 @@ class App extends Component {
           <li><Link to="/">Home</Link></li>
           <li><Link to="/secret">Secret</Link></li>
           <li><Link to="/login">Login</Link></li>
+          <li><Link to="/tickets">Tickets</Link></li>
         </ul>
 
         <Switch>
           <Route path="/" exact component={Home} />
           <Route path="/secret" component={withAuth(Secret)} />
+          <Route path="/tickets" component={withAuth(CreateTickets)} />
           <Route path="/login" component={Login} />
           <Route path="/register"  >
             <Register />
@@ -35,7 +38,6 @@ function Register(){
     setRes(res);
   }
   // useEffect(() => {
-    console.log('>>>')
     let { search } = useLocation()
     console.log(search)
     const values = queryString.parse(search)

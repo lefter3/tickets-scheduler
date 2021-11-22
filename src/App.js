@@ -4,6 +4,7 @@ import withAuth from './withAuth';
 import Home from './Home';
 import Secret from './Secret';
 import CreateTickets from './TicketAdmin';
+import SearchTickets from './ListTickets';
 import Login from './Login';
 import { useLocation } from 'react-router-dom';
 import  queryString  from 'query-string';
@@ -17,12 +18,14 @@ class App extends Component {
           <li><Link to="/secret">Secret</Link></li>
           <li><Link to="/login">Login</Link></li>
           <li><Link to="/tickets">Tickets</Link></li>
+          <li><Link to="/list">Search</Link></li>
         </ul>
 
         <Switch>
           <Route path="/" exact component={Home} />
           <Route path="/secret" component={withAuth(Secret)} />
           <Route path="/tickets" component={withAuth(CreateTickets)} />
+          <Route path="/list" component={withAuth(SearchTickets)} />
           <Route path="/login" component={Login} />
           <Route path="/register"  >
             <Register />

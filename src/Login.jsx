@@ -44,9 +44,9 @@ export default class Login extends Component {
       <form onSubmit={this.onSubmit} className=''>
         <h1>Login Below!</h1>
         <input
-          type="email"
+          type="text"
           name="email"
-          placeholder="Enter email"
+          placeholder="Enter username"
           value={this.state.email}
           onChange={this.handleInputChange}
           required

@@ -112,23 +112,24 @@ app.post('/api/tickets', function(req, res) {
   }
    res.send('ok')
 });
+
+app.post('/api/tickets/book', function(req, res) {
+    const { inbound, outbound, from_date, price, seat } = req.body;
+    Ticket.findOneAndUpdate({inbound: inbound, outbound: outbound, from_date: from_date, price: price, seat: seat }, {booked: true})
+    .then((ticket) => {
+      return res.status(200).json(ticket)
+    })
+    
+});
+
 app.post('/api/tickets/search', function(req, res) {
   let seats = req.body.seats
     const { inbound, outbound, from_date, to_date } = req.body;
     Ticket.find({inbound: inbound, outbound: outbound, from_date: {$gte:from_date, $lt: to_date} })
     .then((tickets) => {
-      console.log(tickets)
       return res.status(200).json(tickets)
     })
-  //   Ticket.aggregate([{ 
-  //     $group : {
-  //         _id : null,
-  //         from_date : { $addToSet : "$from_date" }
-  //     }
-  // }]).then(resp => res.status(200).json(resp))
-  // res.send('ok')
-});
 
-///////////////////////////////////////////
+});
 
 app.listen(process.env.PORT || 8080);

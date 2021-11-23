@@ -4,30 +4,72 @@ export default class ListTickets extends Component {
   constructor() {
     super();
     this.state = {
+      ticketType: "",
+      seat_nr: null,
       inbound: '',
       outbound: '',
       // seats: 0, 
       from_date: '',
       to_date: '',
       // price: ''
+      "inbound": "Tirana",
+      "outbound": "Paris",
+      "from_date": "2021-11-01",
+      "to_date": "2021-12-01",
+      fromDate: "",
+      priceChosen: null,
+      all_tickets: [],
       ticketItems: [],
-      showBookDialog: false
+      showBookDialog: false,
+      seats: []
     }
 
   }
 
 
   listItem  = (props) => {
-    console.log(props)
     return  Object.keys(props).map((option, index)=>{
               return props[option].map(price => {
-               return (<div><p>{option +" "+ price}</p><button onClick={this.showDialog(option, price)}>test</button></div>)
+               return (<div><p>{option +" "+ price}</p><button onClick={() => this.showDialog(option, price)}>test</button></div>)
               })
             })
   };
 
-  showDialog =() => {
-    
+  closedialog = () => {
+    this.setState({
+      showBookDialog: false,
+      fromDate: "",
+      priceChosen: null,
+      seats: [],
+      });
+  }
+  showDialog = (date, price) => {
+    let seats = this.state.all_tickets.filter(el => el.from_date == date && price == el.price && !el.booked).map(el => el.seat)
+    this.setState({
+      fromDate: date,
+      priceChosen: price,
+      seats: seats,
+      showBookDialog: true
+      });
+  }
+
+  book = () => {
+    let body = {
+      inbound: this.state.inbound,
+      outbound: this.state.outbound,
+      from_date: this.state.fromDate,
+      price: this.state.priceChosen,
+      seat: this.state.seat_nr
+    }
+    fetch('/api/tickets/book', {
+      method: 'POST',
+      body: JSON.stringify(body),
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    }).then(res => {
+      alert('Booking done')
+    })
   }
 
   onSubmit = (event) => {
@@ -44,17 +86,14 @@ export default class ListTickets extends Component {
         let ticketItems = []
         let dates = [...new Set(body.map(x => x.from_date))]
         dates.forEach(elem => {
-          ticketItems[elem] = [...new Set(body.filter(x => x.from_date == elem).map(j => j.price))]
+          ticketItems[elem] = [...new Set(body.filter(x => x.from_date == elem && !x.booked).map(j => j.price))]
         })
         // useEffect(() => { setTicketItems(ticketItems) }, [])
 
         this.setState({
-          ticketItems: ticketItems
-        }, ()=>{
-        console.log(this.state)
-        this.forceUpdate();
-
-      });
+          ticketItems: ticketItems,
+          all_tickets: body
+          });
 
       })
     })
@@ -131,7 +170,7 @@ export default class ListTickets extends Component {
               {/*header*/}
               <div className="flex items-start justify-between p-5 border-b border-solid border-blueGray-200 rounded-t">
                 <h3 className="text-3xl font-semibold">
-                  Modal Title
+                  Choose Seat
                 </h3>
                 <button
                   className="p-1 ml-auto bg-transparent border-0 text-black opacity-5 float-right text-3xl leading-none font-semibold outline-none focus:outline-none"
@@ -144,16 +183,17 @@ export default class ListTickets extends Component {
               </div>
               {/*body*/}
               <div className="relative p-6 flex-auto">
-                <p className="my-4 text-blueGray-500 text-lg leading-relaxed">
-                  I always felt like I could do anything. That’s the main
-                  thing people are controlled by! Thoughts- their perception
-                  of themselves! They're slowed down by their perception of
-                  themselves. If you're taught you can’t do anything, you
-                  won’t do anything. I was taught I could do everything.
-                </p>
+                <select 
+                name="seat_nr"
+                onChange={this.handleInputChange}
+                required
+                >
+                  {this.state.seats.map(seat => (<option value={seat}>{seat}</option>))}
+                </select>
+                <button onClick={() => this.book()}>Book</button>
               </div>
               {/*footer*/}
-              <div className="flex items-center justify-end p-6 border-t border-solid border-blueGray-200 rounded-b">
+              {/* <div className="flex items-center justify-end p-6 border-t border-solid border-blueGray-200 rounded-b">
                 <button
                   className="text-red-500 background-transparent font-bold uppercase px-6 py-2 text-sm outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
                   type="button"
@@ -168,7 +208,7 @@ export default class ListTickets extends Component {
                 >
                   Save Changes
                 </button>
-              </div>
+              </div> */}
             </div>
           </div>
         </div>

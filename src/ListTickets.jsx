@@ -1,10 +1,10 @@
-import React, {useState, useEffect, Component } from 'react';
+import React, { Component } from 'react';
 
 export default class ListTickets extends Component {
   constructor() {
     super();
     this.state = {
-      ticketType: "",
+      ticketType: "single",
       seat_nr: null,
       inbound: '',
       outbound: '',
@@ -18,6 +18,7 @@ export default class ListTickets extends Component {
       "to_date": "2021-12-01",
       fromDate: "",
       priceChosen: null,
+      tickets_return: [],
       all_tickets: [],
       ticketItems: [],
       showBookDialog: false,
@@ -26,6 +27,9 @@ export default class ListTickets extends Component {
 
   }
 
+  handleRadioChange = (type) => {
+    this.setState({ticketType: type});
+  }
 
   listItem  = (props) => {
     return  Object.keys(props).map((option, index)=>{
@@ -34,6 +38,14 @@ export default class ListTickets extends Component {
               })
             })
   };
+
+  // listReturnFlights  = (props) => {
+  //   return  Object.keys(props).map((option, index)=>{
+  //             return props[option].map(price => {
+  //              return (<div><p>{option +" "+ price}</p><button onClick={() => this.showDialog(option, price)}>test</button></div>)
+  //             })
+  //           })
+  // };
 
   closedialog = () => {
     this.setState({
@@ -72,11 +84,20 @@ export default class ListTickets extends Component {
     })
   }
 
+  
+
   onSubmit = (event) => {
   event.preventDefault();
+  let pairs = []
+  let data = {
+    inbound: this.state.inbound,
+    outbound: this.state.outbound,
+    from_date: this.state.from_date,
+    to_date: this.state.to_date,
+  }
     fetch('/api/tickets/search', {
       method: 'POST',
-      body: JSON.stringify(this.state),
+      body: JSON.stringify(data),
       headers: {
         'Content-Type': 'application/json'
       }
@@ -93,13 +114,68 @@ export default class ListTickets extends Component {
         this.setState({
           ticketItems: ticketItems,
           all_tickets: body
-          });
+          })
 
-      })
+      }).then(()=>{
+
+        if (this.state.ticketType == 'return'){
+        let returnData = {
+            inbound: this.state.outbound,
+            outbound: this.state.inbound,
+            from_date: this.state.from_date,
+            to_date: this.state.to_date,
+          }
+          fetch('/api/tickets/search', {
+            method: 'POST',
+            body: JSON.stringify(returnData),
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          }).then((returnTickets)=>{
+            
+            returnTickets.json().then(tickets => {
+              let returns = []
+              let returnDates = [...new Set(tickets.map(x => x.from_date))]
+              returnDates.forEach(elem => {
+                returns[elem] = [...new Set(tickets.filter(x => x.from_date == elem && !x.booked).map(j => j.price))]
+              })
+              let oneWay = this.state.ticketItems
+              console.log(oneWay, returns)
+              Object.keys(oneWay).forEach(single => {
+                for (let i = 0; i < oneWay[single].length; i++){
+                  Object.keys(returns).forEach(ret => {
+                    for (let j = 0; j < returns[ret].length; j++){
+                      let pair = {
+                        singleDate: single,
+                        price1: oneWay[single][i],
+                        returnDate: ret,
+                        price2: returns[ret][j]
+                      }
+                      console.log(pair)
+                      pairs.push(pair)
+                    }
+                  })
+                }
+
+              })
+                this.setState({
+                  tickets_return: pairs
+                })
+                console.log('1', this.state)
+            })
+          })
+        }
+
+
+
+      });
+
+
+      
     })
     .catch(err => {
       console.error(err);
-    });
+    })
   }
   handleInputChange = (event) => {
     const { value, name } = event.target;
@@ -148,6 +224,15 @@ export default class ListTickets extends Component {
           required
         />
         </label>
+        <label>One Way
+        <input type="radio" name="type"
+        onChange={() => this.handleRadioChange('single')} />
+        </label>
+        <label>Return
+        <input
+        type="radio" name="type"
+        onChange={() => this.handleRadioChange('return')} />
+        </label>
         <input type="submit" value="Submit"/>
       </form>
 
@@ -155,7 +240,7 @@ export default class ListTickets extends Component {
       <div>
 
         { 
-          this.listItem(this.state.ticketItems)
+          this.state.ticketType == 'single' ? this.listItem(this.state.ticketItems) : null
         } 
       </div>
       <br />

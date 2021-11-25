@@ -8,6 +8,8 @@ export default class ListTickets extends Component {
       seat_nr: null,
       inbound: '',
       outbound: '',
+      singleId: null,
+      returnId: null,
       // seats: 0, 
       from_date: '',
       to_date: '',
@@ -15,43 +17,122 @@ export default class ListTickets extends Component {
       "inbound": "Tirana",
       "outbound": "Paris",
       "from_date": "2021-11-01",
-      "to_date": "2021-12-01",
+      "to_date": "2021-12-02",
       fromDate: "",
       priceChosen: null,
+      fromDateReturn: null,
+      all_returns: [],
+      return_seat: null,
       tickets_return: [],
       all_tickets: [],
+      return_seats: [],
       ticketItems: [],
       showBookDialog: false,
       seats: []
     }
 
   }
-
+  bookReturn = () => {
+    console.log(this.state)
+    let oneWay = this.state.all_tickets.find((ticket) => 
+    ticket.inbound == this.state.inbound && 
+    ticket.outbound == this.state.outbound &&
+    ticket.seat == this.state.seat_nr && 
+    ticket.from_date == this.state.fromDate &&
+    !ticket.booked
+    )
+    let rTicket = this.state.all_returns.find((ticket) => 
+    ticket.inbound == this.state.outbound && 
+    ticket.outbound == this.state.inbound &&
+    ticket.seat == this.state.return_seat && 
+    ticket.from_date == this.state.fromDateReturn &&
+    !ticket.booked
+    )
+    let body = {
+      singleId: oneWay._id,
+      returnId: rTicket._id
+    }
+    fetch('/api/tickets/bookReturn', {
+      method: 'POST',
+      body: JSON.stringify(body),
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    }).then(res => {
+      alert(res)
+    })
+    
+  }
   handleRadioChange = (type) => {
     this.setState({ticketType: type});
   }
 
+  updateResults = (type) => {
+    let arrivalDate = this.state.all_tickets.find((ticket) => 
+    ticket.inbound == this.state.inbound && 
+    ticket.outbound == this.state.outbound &&
+    ticket.price == price && 
+    ticket.from_date == option &&
+    !ticket.booked )
+  }
   listItem  = (props) => {
     return  Object.keys(props).map((option, index)=>{
               return props[option].map(price => {
-               return (<div><p>{option +" "+ price}</p><button onClick={() => this.showDialog(option, price)}>test</button></div>)
+                let arrivalDate = this.state.all_tickets.find((ticket) => 
+                ticket.inbound == this.state.inbound && 
+                ticket.outbound == this.state.outbound &&
+                ticket.price == price && 
+                ticket.from_date == option &&
+                !ticket.booked )
+               return (<div><p>{option +" "+ price+' '+ arrivalDate.to_date}</p><button onClick={() => this.showDialog(option, price)}>test</button></div>)
               })
             })
   };
 
-  // listReturnFlights  = (props) => {
-  //   return  Object.keys(props).map((option, index)=>{
-  //             return props[option].map(price => {
-  //              return (<div><p>{option +" "+ price}</p><button onClick={() => this.showDialog(option, price)}>test</button></div>)
-  //             })
-  //           })
-  // };
+  listReturnFlights  = (props) => {
+    //return  Object.keys(props).map((option, index)=>{
+              return props.map(option => {
+                let arrivalDate1 = this.state.all_tickets.find((ticket) => 
+                ticket.inbound == this.state.inbound && 
+                ticket.outbound == this.state.outbound &&
+                ticket.price == option.price1 && 
+                ticket.from_date == option.singleDate &&
+                !ticket.booked )
+                let arrivalDate2 = this.state.all_returns.find((ticket) => 
+                ticket.outbound == this.state.inbound && 
+                ticket.inbound == this.state.outbound &&
+                ticket.price == option.price2 && 
+                ticket.from_date == option.returnDate &&
+                !ticket.booked )
+                console.log(arrivalDate2)
+               return (
+                <div>
+                  <div>
+                      <p>{this.state.inbound +" -> "+ this.state.outbound}</p>
+                      <p>{option.singleDate +" -> "+ arrivalDate1.to_date}</p>
+                      <p>{option.price1}</p>
+                  </div>
+                  <div>
+                      <p>{this.state.outbound +" -> "+ this.state.inbound}</p>
+                      <p>{option.returnDate +" -> "+ arrivalDate2.to_date}</p>
+                      <p>{option.price2}</p>
+                  </div>
+                  <button onClick={() => this.showReturnDialog(option)}>test</button>
+
+                </div>
+                )
+              })
+    //        })
+  };
 
   closedialog = () => {
     this.setState({
       showBookDialog: false,
       fromDate: "",
       priceChosen: null,
+      fromDateReturn: null,
+      returnPriceChoosen: null,
+      return_seats: null,
       seats: [],
       });
   }
@@ -64,7 +145,20 @@ export default class ListTickets extends Component {
       showBookDialog: true
       });
   }
-
+  showReturnDialog = (option) => {
+    let seats = this.state.all_tickets.filter(el => el.from_date == option.singleDate && option.price1 == el.price && !el.booked).map(el => el.seat)
+    let return_seats = this.state.all_returns.filter(el => el.from_date == option.returnDate && option.price2 == el.price && !el.booked).map(el => el.seat)
+    
+    this.setState({
+      fromDate: option.singleDate,
+      fromDateReturn: option.returnDate,
+      priceChosen: option.price1,
+      returnPriceChoosen: option.price2,
+      return_seats: return_seats,
+      seats: seats,
+      showBookDialog: true
+      });
+  }
   book = () => {
     let body = {
       inbound: this.state.inbound,
@@ -140,7 +234,7 @@ export default class ListTickets extends Component {
                 returns[elem] = [...new Set(tickets.filter(x => x.from_date == elem && !x.booked).map(j => j.price))]
               })
               let oneWay = this.state.ticketItems
-              console.log(oneWay, returns)
+              //console.log(oneWay, returns)
               Object.keys(oneWay).forEach(single => {
                 for (let i = 0; i < oneWay[single].length; i++){
                   Object.keys(returns).forEach(ret => {
@@ -151,7 +245,7 @@ export default class ListTickets extends Component {
                         returnDate: ret,
                         price2: returns[ret][j]
                       }
-                      console.log(pair)
+                      //console.log(pair)
                       pairs.push(pair)
                     }
                   })
@@ -159,9 +253,15 @@ export default class ListTickets extends Component {
 
               })
                 this.setState({
+                  all_returns: tickets,
                   tickets_return: pairs
                 })
                 console.log('1', this.state)
+            }).then(()=> {
+              this.setState({
+                tickets_return: pairs
+              })
+              console.log('1', this.state)
             })
           })
         }
@@ -240,7 +340,7 @@ export default class ListTickets extends Component {
       <div>
 
         { 
-          this.state.ticketType == 'single' ? this.listItem(this.state.ticketItems) : null
+          this.state.ticketType == 'single' ? this.listItem(this.state.ticketItems) : this.listReturnFlights(this.state.tickets_return)
         } 
       </div>
       <br />
@@ -268,6 +368,7 @@ export default class ListTickets extends Component {
               </div>
               {/*body*/}
               <div className="relative p-6 flex-auto">
+                One way seat
                 <select 
                 name="seat_nr"
                 onChange={this.handleInputChange}
@@ -275,8 +376,20 @@ export default class ListTickets extends Component {
                 >
                   {this.state.seats.map(seat => (<option value={seat}>{seat}</option>))}
                 </select>
-                <button onClick={() => this.book()}>Book</button>
+                {this.state.ticketType == 'single' ? (<button onClick={() => this.book()}>Book</button>) : null}
               </div>
+              { this.state.ticketType == 'return' ? ( <div className="relative p-6 flex-auto">
+                Return seat
+                <select 
+                name="return_seat"
+                onChange={this.handleInputChange}
+                required
+                >
+                  {this.state.return_seats.map(seat => (<option value={seat}>{seat}</option>))}
+                </select>
+                <button onClick={() => this.bookReturn()}>Book</button>
+              </div>) : null }
+             
               {/*footer*/}
               {/* <div className="flex items-center justify-end p-6 border-t border-solid border-blueGray-200 rounded-b">
                 <button

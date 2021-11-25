@@ -9,6 +9,7 @@ const Ticket = new mongoose.Schema({
   to_date: { type: Date, required: true },
   price: {type: Number, required: true},
   type: {type: String, default: 'single'},
+  type_id: {type: String},
   booked: {type: Boolean, default: false}
   });
 

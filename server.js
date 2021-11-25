@@ -119,7 +119,58 @@ app.post('/api/tickets/book', function(req, res) {
     .then((ticket) => {
       return res.status(200).json(ticket)
     })
-    
+});
+
+app.post('/api/tickets/bookReturn',async function(req, res) {
+  const { singleId, returnId } = req.body;
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  await Ticket.findByIdAndUpdate(singleId, {booked: true, type_id: returnId}, (err, docs) => {
+    if (err){
+        console.log(err)
+    }
+    else{
+        console.log("Updated User1 : ", docs);
+    }
+  })
+  await Ticket.findByIdAndUpdate(returnId, {booked: true, type_id: singleId, type: 'return'}, (err, docs) => {
+    if (err){
+        console.log(err)
+    }
+    else{
+        console.log("Updated User : ", docs);
+    }
+  })
+  await session.commitTransaction()
+  session.endSession();
+  return res.status(200)
+  // let query = {
+  //   $or: [
+  //     { '_id': singleId },
+  //     { '_id': returnId }
+  //   ]
+  // }
+  // Ticket.updateMany(query, [
+  //   {
+  //     $set: {
+  //       booked: true,
+  //       field2: {
+  //         $switch: {
+  //           branches: [
+  //             {
+  //               case: { $eq: ["$fieldId", "MATCH1"] },
+  //               then: transfоrmFunc("$field3")
+  //             },
+  //             {
+  //               case: { $eq: ["$fieldId", "MATCH2"] },
+  //               then: transfоrmFunc("$field4.subfield")
+  //             }
+  //           ]
+  //         }
+  //       }
+  //     }
+  //   }
+  // ]);
 });
 
 app.post('/api/tickets/search', function(req, res) {

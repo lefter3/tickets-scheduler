@@ -52,6 +52,7 @@ app.get('/api/register', function(req, res) {
 
 app.post('/api/authenticate', function(req, res) {
   const { email, password } = req.body;
+  let type
   User.findOne({ email }, function(err, user) {
     if (err) {
       console.error(err);
@@ -65,6 +66,7 @@ app.post('/api/authenticate', function(req, res) {
         error: 'Incorrect email or password'
       });
     } else {
+      type = user.type
       user.isCorrectPassword(password, function(err, same) {
         if (err) {
           res.status(500)
@@ -78,7 +80,7 @@ app.post('/api/authenticate', function(req, res) {
           });
         } else {
           // Issue token
-          const payload = { email };
+          const payload = { type };
           const token = jwt.sign(payload, secret, {
             expiresIn: '1h'
           });
@@ -95,7 +97,6 @@ app.get('/checkToken', withAuth, function(req, res) {
 /////////////////////Tickets///////////////
 
 app.post('/api/tickets', function(req, res) {
-  console.log(req.body)
   let seats = req.body.seats
   for (i=1; i <= seats; i++) { 
     const { inbound, outbound, from_date, to_date, price } = req.body;
@@ -104,10 +105,7 @@ app.post('/api/tickets', function(req, res) {
     ticket.save(function(err) {
       if (err) {
         console.log(err);
-        //res.status(500).send("Error");
-      } else {
-        //res.status(200).send("OK");
-      }
+      } 
     });
   }
    res.send('ok')
@@ -116,7 +114,7 @@ app.post('/api/tickets', function(req, res) {
 app.post('/api/tickets/book', function(req, res) {
     const { inbound, outbound, from_date, price, seat } = req.body;
     Ticket.findOneAndUpdate({inbound: inbound, outbound: outbound, from_date: from_date, price: price, seat: seat }, {booked: true})
-    .then((ticket) => {
+    .then((ticket) => {  
       return res.status(200).json(ticket)
     })
 });
@@ -128,55 +126,39 @@ app.post('/api/tickets/bookReturn',async function(req, res) {
   await Ticket.findByIdAndUpdate(singleId, {booked: true, type_id: returnId}, (err, docs) => {
     if (err){
         console.log(err)
+        session.abortTransaction()
+        return res.status(500)
     }
     else{
         console.log("Updated User1 : ", docs);
+        
     }
   })
   await Ticket.findByIdAndUpdate(returnId, {booked: true, type_id: singleId, type: 'return'}, (err, docs) => {
     if (err){
         console.log(err)
+        session.abortTransaction()
+        return res.status(500)
     }
     else{
         console.log("Updated User : ", docs);
     }
   })
   await session.commitTransaction()
+
   session.endSession();
-  return res.status(200)
-  // let query = {
-  //   $or: [
-  //     { '_id': singleId },
-  //     { '_id': returnId }
-  //   ]
-  // }
-  // Ticket.updateMany(query, [
-  //   {
-  //     $set: {
-  //       booked: true,
-  //       field2: {
-  //         $switch: {
-  //           branches: [
-  //             {
-  //               case: { $eq: ["$fieldId", "MATCH1"] },
-  //               then: transfоrmFunc("$field3")
-  //             },
-  //             {
-  //               case: { $eq: ["$fieldId", "MATCH2"] },
-  //               then: transfоrmFunc("$field4.subfield")
-  //             }
-  //           ]
-  //         }
-  //       }
-  //     }
-  //   }
-  // ]);
+
+  return res.status(200).json()
 });
 
-app.post('/api/tickets/search', function(req, res) {
+app.post('/api/tickets/search', withAuth, function(req, res) {
   let seats = req.body.seats
     const { inbound, outbound, from_date, to_date } = req.body;
-    Ticket.find({inbound: inbound, outbound: outbound, from_date: {$gte:from_date, $lt: to_date} })
+    let query = {inbound: inbound, outbound: outbound, from_date: {$gte:from_date, $lt: to_date} }
+    if (req.type == 'user'){
+      query.booked = false
+    }
+    Ticket.find(query)
     .then((tickets) => {
       return res.status(200).json(tickets)
     })

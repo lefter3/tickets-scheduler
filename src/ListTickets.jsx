@@ -10,10 +10,8 @@ export default class ListTickets extends Component {
       outbound: '',
       singleId: null,
       returnId: null,
-      // seats: 0, 
       from_date: '',
       to_date: '',
-      // price: ''
       "inbound": "Tirana",
       "outbound": "Paris",
       "from_date": "2021-11-01",
@@ -48,6 +46,7 @@ export default class ListTickets extends Component {
     ticket.from_date == this.state.fromDateReturn &&
     !ticket.booked
     )
+
     let body = {
       singleId: oneWay._id,
       returnId: rTicket._id
@@ -59,7 +58,8 @@ export default class ListTickets extends Component {
         'Content-Type': 'application/json'
       }
     }).then(res => {
-      alert(res)
+      alert('Tickets booked')
+      this.closedialog()
     })
     
   }
@@ -76,53 +76,39 @@ export default class ListTickets extends Component {
     !ticket.booked )
   }
   listItem  = (props) => {
-    return  Object.keys(props).map((option, index)=>{
-              return props[option].map(price => {
-                let arrivalDate = this.state.all_tickets.find((ticket) => 
-                ticket.inbound == this.state.inbound && 
-                ticket.outbound == this.state.outbound &&
-                ticket.price == price && 
-                ticket.from_date == option &&
-                !ticket.booked )
-               return (<div><p>{option +" "+ price+' '+ arrivalDate.to_date}</p><button onClick={() => this.showDialog(option, price)}>test</button></div>)
-              })
-            })
+      return props.map(option => {
+        let ticket = JSON.parse(option)
+        return (
+        <div>
+          <div>
+            <p>{this.state.inbound +" -> "+ this.state.outbound}</p>
+            <p>{ticket.from +" -> "+ ticket.to}</p>
+            <p>{ticket.price}</p>
+          </div>
+          <button onClick={() => this.showDialog(option, price)}>test</button>
+        </div>)
+      })
   };
 
   listReturnFlights  = (props) => {
-    //return  Object.keys(props).map((option, index)=>{
-              return props.map(option => {
-                let arrivalDate1 = this.state.all_tickets.find((ticket) => 
-                ticket.inbound == this.state.inbound && 
-                ticket.outbound == this.state.outbound &&
-                ticket.price == option.price1 && 
-                ticket.from_date == option.singleDate &&
-                !ticket.booked )
-                let arrivalDate2 = this.state.all_returns.find((ticket) => 
-                ticket.outbound == this.state.inbound && 
-                ticket.inbound == this.state.outbound &&
-                ticket.price == option.price2 && 
-                ticket.from_date == option.returnDate &&
-                !ticket.booked )
-                console.log(arrivalDate2)
-               return (
-                <div>
-                  <div>
-                      <p>{this.state.inbound +" -> "+ this.state.outbound}</p>
-                      <p>{option.singleDate +" -> "+ arrivalDate1.to_date}</p>
-                      <p>{option.price1}</p>
-                  </div>
-                  <div>
-                      <p>{this.state.outbound +" -> "+ this.state.inbound}</p>
-                      <p>{option.returnDate +" -> "+ arrivalDate2.to_date}</p>
-                      <p>{option.price2}</p>
-                  </div>
-                  <button onClick={() => this.showReturnDialog(option)}>test</button>
+    return props.map(option => {
+      return (
+      <div>
+        <div>
+            <p>{this.state.inbound +" -> "+ this.state.outbound}</p>
+            <p>{option.singleDateFrom +" -> "+ option.singleDateTo}</p>
+            <p>{option.price1}</p>
+        </div>
+        <div>
+            <p>{this.state.outbound +" -> "+ this.state.inbound}</p>
+            <p>{option.returnDateFrom +" -> "+ option.returnDateTo}</p>
+            <p>{option.price2}</p>
+        </div>
+        <button onClick={() => this.showReturnDialog(option)}>Book</button>
 
-                </div>
-                )
-              })
-    //        })
+      </div>
+      )
+    })
   };
 
   closedialog = () => {
@@ -146,12 +132,14 @@ export default class ListTickets extends Component {
       });
   }
   showReturnDialog = (option) => {
-    let seats = this.state.all_tickets.filter(el => el.from_date == option.singleDate && option.price1 == el.price && !el.booked).map(el => el.seat)
-    let return_seats = this.state.all_returns.filter(el => el.from_date == option.returnDate && option.price2 == el.price && !el.booked).map(el => el.seat)
+    let seats = this.state.all_tickets.filter(el => el.from_date == option.singleDateFrom && el.to_date == option.singleDateTo && option.price1 == el.price && !el.booked).map(el => el.seat)
+    let return_seats = this.state.all_returns.filter(el => el.from_date == option.returnDateFrom && el.to_date == option.returnDateTo && option.price2 == el.price && !el.booked).map(el => el.seat)
     
     this.setState({
-      fromDate: option.singleDate,
-      fromDateReturn: option.returnDate,
+      seat_nr: seats[0],
+      return_seat: return_seats[0],
+      fromDate: option.singleDateFrom,
+      fromDateReturn: option.returnDateFrom,
       priceChosen: option.price1,
       returnPriceChoosen: option.price2,
       return_seats: return_seats,
@@ -177,9 +165,6 @@ export default class ListTickets extends Component {
       alert('Booking done')
     })
   }
-
-  
-
   onSubmit = (event) => {
   event.preventDefault();
   let pairs = []
@@ -198,20 +183,13 @@ export default class ListTickets extends Component {
     })
     .then(res => {
       res.json().then(body => {
-        let ticketItems = []
-        let dates = [...new Set(body.map(x => x.from_date))]
-        dates.forEach(elem => {
-          ticketItems[elem] = [...new Set(body.filter(x => x.from_date == elem && !x.booked).map(j => j.price))]
-        })
-        // useEffect(() => { setTicketItems(ticketItems) }, [])
-
+        let ticketItems = [...new Set(body.map(x => JSON.stringify({from: x.from_date, to: x.to_date, price: x.price})))]
         this.setState({
           ticketItems: ticketItems,
           all_tickets: body
           })
 
       }).then(()=>{
-
         if (this.state.ticketType == 'return'){
         let returnData = {
             inbound: this.state.outbound,
@@ -228,46 +206,35 @@ export default class ListTickets extends Component {
           }).then((returnTickets)=>{
             
             returnTickets.json().then(tickets => {
-              let returns = []
-              let returnDates = [...new Set(tickets.map(x => x.from_date))]
-              returnDates.forEach(elem => {
-                returns[elem] = [...new Set(tickets.filter(x => x.from_date == elem && !x.booked).map(j => j.price))]
-              })
+              let returns = [...new Set(tickets.map(x => JSON.stringify({from: x.from_date, to: x.to_date, price: x.price})))]
               let oneWay = this.state.ticketItems
-              //console.log(oneWay, returns)
-              Object.keys(oneWay).forEach(single => {
-                for (let i = 0; i < oneWay[single].length; i++){
-                  Object.keys(returns).forEach(ret => {
-                    for (let j = 0; j < returns[ret].length; j++){
-                      let pair = {
-                        singleDate: single,
-                        price1: oneWay[single][i],
-                        returnDate: ret,
-                        price2: returns[ret][j]
-                      }
-                      //console.log(pair)
+              for (let i = 0; i < oneWay.length; i++){
+                  for (let j = 0; j < returns.length; j++){
+                    let single = JSON.parse(oneWay[i])
+                    let ret = JSON.parse(returns[j])
+                    let pair = {
+                      singleDateFrom: single.from,
+                      singleDateTo: single.to,
+                      price1: single.price,
+                      returnDateFrom: ret.from,
+                      returnDateTo: ret.to,
+                      price2: ret.price
+                    }
+                    if (ret.from > single.to){
                       pairs.push(pair)
                     }
-                  })
-                }
-
-              })
+                  }
+              }
                 this.setState({
                   all_returns: tickets,
                   tickets_return: pairs
                 })
-                console.log('1', this.state)
-            }).then(()=> {
-              this.setState({
-                tickets_return: pairs
-              })
-              console.log('1', this.state)
+                //console.log('1', this.state)
+            })
+            .then(()=> {
             })
           })
         }
-
-
-
       });
 
 

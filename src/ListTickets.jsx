@@ -1,8 +1,10 @@
 import React, { Component } from 'react';
-
+import socketClient from "socket.io-client";
+const SERVER = "http://127.0.0.1:8080";
 export default class ListTickets extends Component {
   constructor() {
     super();
+    
     this.state = {
       ticketType: "single",
       seat_nr: null,
@@ -26,12 +28,22 @@ export default class ListTickets extends Component {
       return_seats: [],
       ticketItems: [],
       showBookDialog: false,
+      dialogOption: {},
       seats: []
+    
     }
 
   }
+  componentDidMount() {
+    var socket = socketClient (SERVER);
+    socket.on('connection', () => {
+        console.log(`I'm connected with the back-end`);
+    });
+    socket.on('ticket-booked', data => {
+      this.updateResults(data)
+    })
+}
   bookReturn = () => {
-    console.log(this.state)
     let oneWay = this.state.all_tickets.find((ticket) => 
     ticket.inbound == this.state.inbound && 
     ticket.outbound == this.state.outbound &&
@@ -57,9 +69,14 @@ export default class ListTickets extends Component {
       headers: {
         'Content-Type': 'application/json'
       }
-    }).then(res => {
-      alert('Tickets booked')
-      this.closedialog()
+    }).then((err, res) => {
+      if (!err){
+        alert('Tickets booked')
+        this.closedialog()
+      }else{
+        alert('Tickets not booked')
+      }
+      
     })
     
   }
@@ -67,13 +84,57 @@ export default class ListTickets extends Component {
     this.setState({ticketType: type});
   }
 
-  updateResults = (type) => {
-    let arrivalDate = this.state.all_tickets.find((ticket) => 
-    ticket.inbound == this.state.inbound && 
-    ticket.outbound == this.state.outbound &&
-    ticket.price == price && 
-    ticket.from_date == option &&
-    !ticket.booked )
+  updateResults = (ticketIds) => {
+    if (this.state.all_tickets.length) {
+      let found = this.state.all_tickets.findIndex(x => ticketIds.includes(x._id));
+      if  (found){
+        let tickets = this.state.all_tickets.map(el => ticketIds.includes(el._id) ? Object.assign(el, {booked: true}) : el)
+        let ticketItems = [...new Set(tickets.map(x => JSON.stringify({from: x.from_date, to: x.to_date, price: x.price})))]
+          this.setState({
+            ticketItems: ticketItems,
+            all_tickets: tickets
+        })
+      }
+      
+    }
+    if (this.state.all_returns.length) {
+      let pairs = []
+      let found = this.state.all_returns.findIndex(x => ticketIds.includes(x._id));
+      if  (found){
+
+        let returnTickets = this.state.all_returns.map(el => ticketIds.includes(el._id) ? Object.assign(el, {booked: true}) : el)
+        let returns = [...new Set(returnTickets.map(x => JSON.stringify({from: x.from_date, to: x.to_date, price: x.price})))]
+        let oneWay = this.state.ticketItems
+        for (let i = 0; i < oneWay.length; i++){
+            for (let j = 0; j < returns.length; j++){
+              let single = JSON.parse(oneWay[i])
+              let ret = JSON.parse(returns[j])
+              let pair = {
+                singleDateFrom: single.from,
+                singleDateTo: single.to,
+                price1: single.price,
+                returnDateFrom: ret.from,
+                returnDateTo: ret.to,
+                price2: ret.price
+              }
+              if (ret.from > single.to){
+                pairs.push(pair)
+              }
+            }
+        }
+          this.setState({
+            all_returns: returnTickets,
+            tickets_return: pairs
+          })
+      }
+    }
+    if (this.state.showBookDialog){
+      if (this.state.ticketType == 'single'){
+        this.showDialog(this.state.dialogOption)
+      }else {
+        this.showReturnDialog(this.state.dialogOption)
+      }
+    }
   }
   listItem  = (props) => {
       return props.map(option => {
@@ -85,7 +146,7 @@ export default class ListTickets extends Component {
             <p>{ticket.from +" -> "+ ticket.to}</p>
             <p>{ticket.price}</p>
           </div>
-          <button onClick={() => this.showDialog(option, price)}>test</button>
+          <button onClick={() => this.showDialog(option)}>test</button>
         </div>)
       })
   };
@@ -122,12 +183,13 @@ export default class ListTickets extends Component {
       seats: [],
       });
   }
-  showDialog = (date, price) => {
-    let seats = this.state.all_tickets.filter(el => el.from_date == date && price == el.price && !el.booked).map(el => el.seat)
+  showDialog = (option) => {
+    let seats = this.state.all_tickets.filter(el => el.from_date == option.from && el.to_date == option.to && price == el.price && !el.booked).map(el => el.seat)
     this.setState({
       fromDate: date,
       priceChosen: price,
       seats: seats,
+      dialogOption: option, 
       showBookDialog: true
       });
   }
@@ -144,6 +206,7 @@ export default class ListTickets extends Component {
       returnPriceChoosen: option.price2,
       return_seats: return_seats,
       seats: seats,
+      dialogOption: option, 
       showBookDialog: true
       });
   }

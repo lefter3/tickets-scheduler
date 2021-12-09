@@ -7,11 +7,19 @@ const mongoose = require('mongoose');
 const User = require('./models/User');
 const Ticket = require('./models/Tickets')
 const withAuth = require('./middleware');
-
+var cors = require('cors')
 const app = express();
-
+const http = require('http');
+const server = http.createServer(app);
+const { Server } = require("socket.io");
+const io = require('socket.io')(server, {
+  cors: {
+    origin: '*',
+  }
+});
+//const io = new Server(server);
 const secret = 'mysecretsshhh';
-
+app.use(cors())
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 app.use(cookieParser());
@@ -27,6 +35,10 @@ mongoose.connect(mongo_uri, { useNewUrlParser: true, useUnifiedTopology: true },
 
 app.use(express.static(path.join(__dirname, 'public')));
 
+io.on('connection', (socket) => { /* socket object may be used to send specific messages to the new connected client */
+
+  console.log('new client connected');
+});
 
 app.get('/', function (req, res) {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -114,7 +126,8 @@ app.post('/api/tickets', function(req, res) {
 app.post('/api/tickets/book', function(req, res) {
     const { inbound, outbound, from_date, price, seat } = req.body;
     Ticket.findOneAndUpdate({inbound: inbound, outbound: outbound, from_date: from_date, price: price, seat: seat }, {booked: true})
-    .then((ticket) => {  
+    .then((ticket) => { 
+      io.sockets.emit('ticket-booked', [ ticket._id ])
       return res.status(200).json(ticket)
     })
 });
@@ -123,32 +136,52 @@ app.post('/api/tickets/bookReturn',async function(req, res) {
   const { singleId, returnId } = req.body;
   const session = await mongoose.startSession();
   session.startTransaction();
-  await Ticket.findByIdAndUpdate(singleId, {booked: true, type_id: returnId}, (err, docs) => {
-    if (err){
-        console.log(err)
-        session.abortTransaction()
-        return res.status(500)
-    }
-    else{
-        console.log("Updated User1 : ", docs);
-        
-    }
-  })
-  await Ticket.findByIdAndUpdate(returnId, {booked: true, type_id: singleId, type: 'return'}, (err, docs) => {
-    if (err){
-        console.log(err)
-        session.abortTransaction()
-        return res.status(500)
-    }
-    else{
-        console.log("Updated User : ", docs);
+  let updated = true
+  await Ticket.findById(singleId,  (err, doc) => {
+    if (!doc.booked){
+      doc.booked = true
+      doc.type_id = returnId
+      doc.save(err => {
+        if (err){
+          console.log(err)
+          session.abortTransaction()
+          return res.sendStatus(500)
+      }
+      })
+    } else {
+      updated = false
     }
   })
-  await session.commitTransaction()
+  await Ticket.findById(returnId, (err, doc) => {
+    if (!doc.booked){
+      doc.booked = true
+      doc.type_id = singleId
+      doc.type = 'return'
+      doc.save(err => {
+        if (err){
+          console.log(err)
+          session.abortTransaction()
+          updated = false
+      }
+      })
+    } else {
+          session.abortTransaction()
+          updated = false
+    }
+    
+  })
 
-  session.endSession();
+  if (updated){
+    await session.commitTransaction()
 
-  return res.status(200).json()
+    session.endSession();
+    io.sockets.emit('ticket-booked', [ singleId, returnId ])
+    return res.sendStatus(200)
+  }
+  else{
+    session.endSession();
+    return res.sendStatus(500)
+  }
 });
 
 app.post('/api/tickets/search', withAuth, function(req, res) {
@@ -165,4 +198,4 @@ app.post('/api/tickets/search', withAuth, function(req, res) {
 
 });
 
-app.listen(process.env.PORT || 8080);
+server.listen(process.env.PORT || 8080);
